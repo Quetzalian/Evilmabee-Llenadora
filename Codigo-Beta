@@ -1,0 +1,238 @@
+#define RadGde 15
+#define SmolRad 11
+#define Height 25
+#define trigger 8
+#define echoes 9
+#define pintemp A0
+#define buttonPin 7
+#define Padn1 22
+#define Padn2 26
+#define Pdfm1 25
+#define Pdfm2 29
+#define ReleHeat 42
+#define StepNow 46
+#define Direction 49
+#define OnLed 4
+#define EmergencyStop 5
+#define AuxLed 6
+#define MoverMotor 11
+#define pinBomba 12
+#define buttonForward 2
+#define buttonBackward 3
+
+#include <LiquidCrystal.h>
+
+
+const int rs = 12, en = 11, d4 = 5, d5 = 4, d6 = 3, d7 = 2, steps = 200, vueltas = 2;
+bool parotren = false;//bit que indica si se uso el paro de emergencia para determinar si se requiere calibrar
+LiquidCrystal lcd(rs, en, d4, d5, d6, d7);
+float Totvol = 0, ActNvl = 0, PowRadG = 0, PowRadp = 0, Apotema = 0,Zetha = 0, RadioNuevo = 0;
+float DistHC = 0, SenoTheta = 0, SenoAlpha = 0, PowRadNw = 0;
+int VolumenRedondo = 0;
+unsigned int duration;
+float Temperatura;
+int countador = 0,stepDelay =0;//delay sin delay para todo el programa para el control de temperatura
+int Anothacount = 0;//contador para vueltas completas de la banda
+int remainder = 0; //mod para comprobar si el motor se encuentra en posicion para los actuadores
+
+int Unavuelta(int){
+  digitalWrite(Direction, HIGH);//Determinamos una direccion con un estado alto
+  stepDelay = 150;
+  for (int x = 0; x < (200*vueltas); x++){
+    digitalWrite(StepNow,HIGH);
+    delayMicroseconds(stepDelay);
+    digitalWrite(StepNow,LOW);
+    delayMicroseconds(stepDelay);
+}
+}
+float TControl(float){
+  if (Temperatura <= 47.0){
+    digitalWrite(ReleHeat, HIGH);
+  }
+  else if (Temperatura > 49.0){
+    digitalWrite(ReleHeat, LOW);
+  }
+}
+
+float Volumen(float) { 
+ 
+Zetha = SenoTheta * (Height / SenoAlpha); //Mediante el teorema de cosenos se obtiene la diferencia de R y r para calcular el nivel actual de miel 
+ RadioNuevo = SmolRad + Zetha;
+PowRadNw = sq(RadioNuevo);
+ActNvl = 3.14159 / 3 * (Height - DistHC) * (PowRadNw + PowRadp + RadioNuevo*SmolRad);//Volumen actual
+  
+}
+long microsecondsToInches(long microseconds) {
+   return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds) {
+   return microseconds / 29 / 2;
+}
+
+
+void setup() {
+  
+
+  pinMode(Direction, OUTPUT);
+  pinMode(StepNow, OUTPUT);
+  lcd.begin(16, 2);
+  pinMode(echoes, INPUT);
+  pinMode(trigger, OUTPUT);
+  Serial.begin(9600);
+  float  PowRadG = sq(RadGde);
+  float  PowRadp = sq(SmolRad);
+  Apotema = sqrt(sq(Height)+sq(RadGde-SmolRad));
+  SenoTheta = (RadGde-SmolRad)/Apotema; 
+  SenoAlpha = Height / Apotema;
+  Totvol = 3.14159 / 3 * Height *  (PowRadG + PowRadp + PowRadG * PowRadp);
+  pinMode(OnLed,OUTPUT);
+  
+}
+void calibrate(){
+  stepDelay = 350;
+  while(digitalRead(buttonForward)== HIGH){
+    
+        digitalWrite(Direction, HIGH);//mientras el boton de avance de frente  este presionado el motor avanzara de manera mas lenta para posicionarlo en su lugar
+        
+            digitalWrite(StepNow,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(StepNow,LOW);
+            delayMicroseconds(stepDelay);
+  }
+  while(digitalRead(buttonBackward)==HIGH){
+              digitalWrite(Direction, LOW);//mientras este presionado el boton de reversa el motor invertira su sentido 
+         
+            digitalWrite(StepNow,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(StepNow,LOW);
+            delayMicroseconds(stepDelay);
+  }
+}
+void Paratutren(){
+      while(digitalRead(EmergencyStop) == HIGH){
+      if(digitalRead(MoverMotor) == HIGH){
+        if(digitalRead(buttonForward) == HIGH){
+          digitalWrite(Direction, HIGH);
+          for (int x = 0; x < 100; x++){
+            digitalWrite(StepNow,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(StepNow,LOW);
+            delayMicroseconds(stepDelay);
+            delay(1000);
+            
+        }
+        }
+        else if(digitalRead(buttonBackward)== HIGH){
+          digitalWrite(Direction,LOW);
+          for (int x = 0; x < 100; x++){
+            
+            digitalWrite(StepNow,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(StepNow,LOW);
+            delayMicroseconds(stepDelay);
+            delay(1000);        
+      }
+    }
+  }
+}
+parotren = true;
+}
+
+void loop() {
+while(digitalRead(buttonPin) != HIGH && digitalRead(EmergencyStop) != LOW){   //para que comience todo es necesario que el boton de encendido se presione y este apagado el paro de emergencia
+  digitalWrite(OnLed,LOW);
+  digitalWrite(StepNow,LOW);
+  if(digitalRead(buttonPin == HIGH)){
+    digitalWrite(AuxLed, HIGH);
+  } 
+  else{
+    digitalWrite(AuxLed, LOW);
+  }
+
+  
+}
+if(MoverMotor != HIGH){
+  Serial.print("El motor se encuentra desactivado");
+  Serial.println();
+  digitalWrite(StepNow, LOW);
+}
+if(digitalRead(buttonForward) == HIGH){
+  if(digitalRead(EmergencyStop) == HIGH){
+    Paratutren();
+  }
+  if(parotren == true){
+    while(digitalRead(buttonPin) != HIGH){ //para salir de calibracion se debe "aceptar" con el boton de encendido
+     calibrate();
+      
+    }
+    parotren == false;
+    Anothacount = 0;
+    
+    
+  }
+  Unavuelta(vueltas);
+  
+  remainder = Anothacount % 2;
+
+  if(remainder = 0){
+    digitalWrite(Pdfm1,HIGH);//los dos pistones planos acercan los popotes a la posicion final
+    digitalWrite(Pdfm2,HIGH);
+    delay(500);
+    digitalWrite(pinBomba,HIGH);//mientras en un lado se llena en otro se activa el piston ADN del sellador 2 
+    digitalWrite(Padn2,HIGH);
+    delay(1000);
+    digitalWrite(pinBomba,LOW);//se llena por 1 segundo los popotes y luego se desactiva la bomba Y sellador 2 mientras se activa el sellador 1
+    digitalWrite(Padn1,HIGH);
+    digitalWrite(Padn2,LOW);
+    delay(1000);
+    digitalWrite(Padn1,LOW);//se desactiva el sellador 1 y se procede a dar otras 2 vueltas
+  
+    
+    
+  }
+  ++Anothacount;
+  
+}
+
+   
+   Temperatura = analogRead(pintemp);//Lectura analogica del voltaje
+   Temperatura = Temperatura * 0.48828125; // Conversion a grados centigrados
+   if (countador == 600){
+    TControl(Temperatura);
+    countador = 0;
+   }
+   Serial.print("TEMPERATURE = ");
+   Serial.print(Temperatura); // display temperature value
+   Serial.print("*C");
+   Serial.println();
+   pinMode(trigger, OUTPUT);
+   digitalWrite(trigger, LOW);
+   delayMicroseconds(2);
+   digitalWrite(trigger, HIGH);
+   delayMicroseconds(10);
+   digitalWrite(trigger, LOW);
+   pinMode(echoes, INPUT);
+   duration = pulseIn(echoes, HIGH);
+  // La velocidad del sonido es de 340 m/s o 29 microsegundos por centimetro
+  // Se divide el tiempo del pulso entre 58, que es el tiempo que tarda en recorrer de ida y vuelta la onda sonora
+  DistHC = duration / 58;
+ VolumenRedondo = Volumen(DistHC);
+  long duration, inches, cm;
+   inches = microsecondsToInches(duration);
+   cm = microsecondsToCentimeters(duration);
+   Serial.print(inches);
+   Serial.print("in, ");
+   Serial.print(cm);
+   Serial.print("cm");
+   Serial.print(VolumenRedondo);
+   Serial.print("vol");
+   Serial.println();
+
+
+++countador;
+if(Anothacount == 20){
+  Anothacount = 0;
+}
+    
+  }
