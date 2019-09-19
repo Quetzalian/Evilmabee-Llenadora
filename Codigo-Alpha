@@ -1,0 +1,31 @@
+#include <Stepper.h>
+
+const int stepsPerRevolution = 200;  // change this to fit the number of steps per revolution
+// for your motor
+const int Emperat = A0;
+int sensVal = 0;//variable que guardara el valor que transmute el LM35
+int noPasos =0; //Numero de pasos necesarios para llegar a la siguiente estacion, puede tender a cambiar para compensar el pequeño desfase que existe en la banda de 2,299.6
+
+
+// initialize the stepper library on pins 8 through 11:
+Stepper myStepper(stepsPerRevolution, 8, 9, 10, 11);
+
+void setup() {
+  // set the speed at 60 rpm:
+  pinMode(Emperat, INPUT);
+  myStepper.setSpeed(60);
+  // initialize the serial port:
+  Serial.begin(9600);
+}
+
+void loop() {
+  // step one revolution  in one direction:
+  Serial.println("clockwise");
+  myStepper.step(stepsPerRevolution);
+  delay(500);
+
+  // step one revolution in the other direction:
+  Serial.println("counterclockwise");
+  myStepper.step(-stepsPerRevolution);
+  delay(500);
+}
