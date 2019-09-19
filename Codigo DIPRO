@@ -1,0 +1,239 @@
+#define RadGde 15
+#define SmolRad 11
+#define Height 25
+#define trigger 13
+#define echoes 12
+#define pintemp A1
+#define ReleHeat 7
+#define p1 2
+#define p2 3
+#define p3 4
+#define p4 5
+#define emergencyS 8
+#define Onbutt 6
+#define buttonForward 10
+#define buttonBackward 11
+#define MoverMotor 9
+
+
+
+float Totvol = 0, ActNvl = 0, PowRadG = 0, PowRadp = 0, Apotema = 0,Zetha = 0, RadioNuevo = 0;
+float DistHC = 0, SenoTheta = 0, SenoAlpha = 0, PowRadNw = 0;
+int VolumenRedondo = 0;
+unsigned int duration;
+float Temperatura;
+long  inches, cm;
+bool parotren,onstate;
+int stepDelay = 0;
+
+
+
+long microsecondsToInches(long microseconds) {
+   return microseconds / 74 / 2;
+}
+
+long microsecondsToCentimeters(long microseconds) {
+   return microseconds / 29 / 2;
+}
+
+float TControl(float){
+  if (Temperatura <= 47.0){
+    digitalWrite(ReleHeat, HIGH);
+  }
+  else if (Temperatura > 49.0){
+    digitalWrite(ReleHeat, LOW);
+  }
+}
+void Paratutren(){
+  
+
+parotren = true;
+}
+
+void setup() {
+  
+
+   float  PowRadG;
+  float  PowRadp;
+  onstate = false;
+  pinMode(echoes, INPUT);
+  pinMode(trigger, OUTPUT);
+  pinMode(ReleHeat, OUTPUT);
+  pinMode(p1, OUTPUT);
+  pinMode(p2, OUTPUT);
+  pinMode(p3, OUTPUT);//direction que deberia ser piston 3
+  pinMode(p4, OUTPUT);//step motor deberia ser piston 4
+  pinMode(emergencyS, INPUT_PULLUP);
+  pinMode(Onbutt, INPUT_PULLUP);
+  pinMode(buttonForward, INPUT_PULLUP);
+  pinMode(buttonBackward, INPUT_PULLUP);
+  Serial.begin(9600);
+
+}
+void calibrate(){
+  stepDelay = 550;
+  while(digitalRead(buttonForward)== HIGH){
+    
+        digitalWrite(p3, HIGH);//mientras el boton de avance de frente  este presionado el motor avanzara de manera mas lenta para posicionarlo en su lugar
+        
+            digitalWrite(p4,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(p4,LOW);
+            delayMicroseconds(stepDelay);
+  }
+  while(digitalRead(buttonBackward)==HIGH){
+             digitalWrite(p3, LOW);//mientras este presionado el boton de reversa el motor invertira su sentido 
+         
+            digitalWrite(p4,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(p4,LOW);
+            delayMicroseconds(stepDelay);
+  }
+}
+
+void loop() {
+if(onstate == false){
+  while(digitalRead(Onbutt) != HIGH && digitalRead(emergencyS) == HIGH){   //para que comience todo es necesario que el boton de encendido se presione y este apagado el paro de emergencia, como tiene pull ups se espera el resultado contrario
+  
+  if(digitalRead(Onbutt == HIGH)){
+    digitalWrite(p1, HIGH);
+  } 
+  
+    onstate = true;
+    digitalWrite(p1, LOW);
+  }
+
+}
+  PowRadG  = sq(RadGde);
+  PowRadp  = sq(SmolRad);
+    Apotema = sqrt(sq(Height)+sq(RadGde-SmolRad));
+  SenoTheta = (RadGde-SmolRad)/Apotema; 
+  SenoAlpha = Height / Apotema;
+  Totvol = 3.14159 / 3 * Height *  (PowRadG + PowRadp + PowRadG * PowRadp);
+    
+   digitalWrite(trigger, LOW);
+   delayMicroseconds(2);
+   digitalWrite(trigger, HIGH);
+   delayMicroseconds(10);
+   digitalWrite(trigger, LOW);
+   
+   duration = pulseIn(echoes, HIGH);
+  // La velocidad del sonido es de 340 m/s o 29 microsegundos por centimetro
+  // Se divide el tiempo del pulso entre 58, que es el tiempo que tarda en recorrer de ida y vuelta la onda sonora
+  DistHC = duration / 58;
+  
+ 
+ Zetha = SenoTheta * (Height / SenoAlpha); //Mediante el teorema de cosenos se obtiene la diferencia de R y r para calcular el nivel actual de miel 
+ RadioNuevo = SmolRad + Zetha;
+PowRadNw = sq(RadioNuevo);
+ActNvl = 3.14159 / 3 * (Height - DistHC) * (PowRadNw + PowRadp + RadioNuevo*SmolRad);//Volumen actual
+  if(MoverMotor == LOW){
+  Serial.print("El motor se encuentra desactivado");
+  Serial.println();
+  digitalWrite(p4, LOW);
+}
+
+  if(digitalRead(emergencyS) == HIGH){
+    Serial.print("El IMO se encuentra desactivado");
+  Serial.println();
+    digitalWrite(ReleHeat,LOW);
+    stepDelay = 850;
+      while(digitalRead(emergencyS) == HIGH){
+        digitalWrite(p1, LOW);
+        digitalWrite(p2, LOW);
+      
+        if(digitalRead(buttonForward) == HIGH){
+          digitalWrite(p3, HIGH);//led de direccion
+          for (int x = 0; x < 100; x++){
+            digitalWrite(p4,HIGH);//led de pasos
+            delayMicroseconds(stepDelay);
+            digitalWrite(p4,LOW);
+            delayMicroseconds(stepDelay);
+            delay(500);
+            if(digitalRead(emergencyS) == LOW){
+        break;
+      }
+            
+        }
+        }
+        else if(digitalRead(buttonBackward)== HIGH){
+         digitalWrite(p3,LOW);
+          for (int x = 0; x < 100; x++){
+            
+            digitalWrite(p4,HIGH);
+            delayMicroseconds(stepDelay);
+            digitalWrite(p4,LOW);
+            delayMicroseconds(stepDelay);
+            delay(1000);  
+            if(digitalRead(emergencyS) == LOW){
+        break;
+      }      
+      }
+    }
+  
+}
+  }
+if(digitalRead(buttonForward)== HIGH){
+  digitalWrite(p3, HIGH);//Determinamos una direccion con un estado alto
+  stepDelay = 550;
+  for (int x = 0; x < (200); x++){
+    digitalWrite(p4,HIGH);
+    delayMicroseconds(stepDelay);
+    digitalWrite(p4,LOW);
+    delayMicroseconds(stepDelay);
+}
+
+}
+digitalWrite(p3, LOW);//Determinamos una direccion con un estado alto
+  stepDelay = 150;
+  for (int x = 0; x < (200); x++){
+    digitalWrite(p4,HIGH);
+    delayMicroseconds(stepDelay);
+    digitalWrite(p4,LOW);
+    delayMicroseconds(stepDelay);
+}
+   Temperatura = analogRead(pintemp);//Lectura analogica del voltaje
+   Temperatura = ((5.0 * Temperatura * 100.0)/1024.0); // Conversion a grados centigrados
+        if (Temperatura <= 47.0){
+    digitalWrite(ReleHeat, HIGH);
+
+
+  }
+  else if (Temperatura > 49.0){
+    digitalWrite(ReleHeat, LOW);
+
+   
+  }
+   Serial.print("TEMPERATURA = ");
+   Serial.print(Temperatura); // display temperature value
+   Serial.print("*C");
+   Serial.print(" ");  
+   inches = microsecondsToInches(duration);
+   cm = microsecondsToCentimeters(duration);
+
+   Serial.print(ActNvl);
+   Serial.print("vol");
+   Serial.println();
+     if (Temperatura <= 47.0){
+    digitalWrite(ReleHeat, HIGH);
+
+
+  }
+  else if (Temperatura > 49.0){
+    digitalWrite(ReleHeat, LOW);
+
+   
+  }
+  if(ActNvl < 500){
+    digitalWrite(p2, HIGH);//pin de la bomba
+    digitalWrite(p1, LOW);//pin de los pistones
+  }else if (ActNvl >= 7000){
+    digitalWrite(p2, LOW);
+    digitalWrite(p1, HIGH);
+  }
+
+
+
+    
+  
+}
